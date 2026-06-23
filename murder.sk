@@ -1,0 +1,340 @@
+# ==========================================
+# [살인자를 찾아라] 살인마 핵심 시스템 (MC 1.21.1 최종본 - 데미지 고정 및 버그 수정 완료)
+# ==========================================
+
+options:
+    prefix: &c[살인마]
+
+# --- [1] 게임 시작 및 살인마 선출 ---
+command /살인자시작 [<integer>]:
+    permission: op
+    trigger:
+        set {game.active} to true
+        broadcast "&a&l[게임 시작] &f치열한 눈치싸움이 시작됩니다. 살인마를 찾아내거나 살아남으세요!"
+        
+        execute console command "gamerule send_command_feedback false"
+        execute console command "gamerule log_admin_commands false"
+        execute console command "gamerule show_death_messages false"
+        execute console command "gamerule locator_bar false"
+        execute console command "gamerule show_advancement_messages false"
+        
+        execute console command "team remove murder_game"
+        execute console command "team add murder_game"
+        execute console command "team modify murder_game nametagVisibility never"
+        execute console command "team join murder_game @a"
+        
+        delete {murderer::*}
+        delete {dash.nofall::*}
+        
+        set {_civ_sword} to iron sword named "&a시민의 검"
+        set lore of {_civ_sword} to "&8▶ &7가장 기본적인 방어용 무기입니다." and "&8▶ &7공격력: 3 (하트 1.5칸)"
+        
+        set {_mud_sword} to iron sword named "&c살인자의 검"
+        set lore of {_mud_sword} to "&8▶ &c[패시브] &f웅크리기(Shift) 유지 시 투명화" and "&8▶ &c[우클릭] &f전방으로 빠르게 돌진 &7(쿨: 14초)" and "&8▶ &c[Shift+우클릭] &f14칸 내 대상의 등 뒤로 순간이동 &7(쿨: 14초)"
+        
+        loop all players:
+            clear loop-player's inventory
+            set loop-player's gamemode to survival
+            reveal loop-player to all players
+            remove invisibility from loop-player
+            delete {stealth::%loop-player%}
+            give {_civ_sword} to loop-player
+            
+        set {_count} to arg-1
+        if {_count} is not set:
+            set {_count} to 1
+            
+        set {_pool::*} to all players
+        
+        if {next_murderer} is set:
+            if {_pool::*} contains {next_murderer}:
+                set {murderer::%{next_murderer}%} to true
+                remove {next_murderer} from {_pool::*}
+                subtract 1 from {_count}
+            delete {next_murderer}
+            
+        if {_count} > 0:
+            loop {_count} times:
+                if size of {_pool::*} > 0:
+                    set {_m} to random player out of {_pool::*}
+                    set {murderer::%{_m}%} to true
+                    remove {_m} from {_pool::*}
+        
+        loop all players:
+            if {murderer::%loop-player%} is true:
+                send "{@prefix} &l당신은 &c&l살인마&e입니다. 시민들을 암살하고 승리하세요!" to loop-player
+                send "{@prefix} &7웅크리기(Shift) 유지로 은신이 가능하며, 검을 들고 능력을 사용할 수 있습니다." to loop-player
+                clear loop-player's inventory
+                give {_mud_sword} to loop-player
+                give {_civ_sword} to loop-player
+            else:
+                send "&a[시민] &f당신은 &a시민&f입니다. 제단을 활성화하여 대항 무기를 만드세요!" to loop-player
+
+        set {killtime_seconds} to 300
+        
+        while {game.active} is true:
+            wait 1 second
+            if {game.active} is not true:
+                stop
+            
+            subtract 1 from {killtime_seconds}
+            
+            set {_m} to floor({killtime_seconds} / 60)
+            set {_s} to {killtime_seconds} - ({_m} * 60)
+            
+            if {_s} < 10:
+                set {_s_str} to "0%{_s}%"
+            else:
+                set {_s_str} to "%{_s}%"
+                
+            loop all players:
+                send action bar "&c&l[킬타임] &f다음 살인 알람까지 &e%{_m}%분 %{_s_str}%초 &f남음" to loop-player
+            
+            if {killtime_seconds} <= 0:
+                broadcast ""
+                broadcast "{@prefix} &c&l[공지] 살인자는 살인이 가능합니다!"
+                broadcast ""
+                loop all players:
+                    play sound "entity.wither.spawn" with volume 0.4 and pitch 0.6 to loop-player
+                set {killtime_seconds} to 420
+
+# --- 게임 종료 ---
+command /살인자종료:
+    permission: op
+    trigger:
+        set {game.active} to false
+        delete {murderer::*}
+        delete {killtime_seconds}
+        delete {dash.nofall::*}
+        
+        execute console command "gamerule sendCommandFeedback true"
+        execute console command "gamerule logAdminCommands true"
+        execute console command "gamerule showDeathMessages true"
+        execute console command "team remove murder_game"
+        
+        loop all players:
+            clear loop-player's inventory
+            set loop-player's gamemode to survival
+            reveal loop-player to all players
+            remove invisibility from loop-player
+            delete {stealth::%loop-player%}
+            execute console command "attribute %loop-player% minecraft:generic.attack_speed base set 4"
+            
+        broadcast "&c&l[게임 종료] &f게임이 강제로 종료되었으며 모든 상태가 초기화되었습니다."
+
+# --- 사망 연출 ---
+on death of player:
+    if {game.active} is true:
+        cancel event
+        heal victim
+        set victim's gamemode to spectator
+        
+        broadcast ""
+        broadcast "   &4&l☠ &c&l[살인 사건 발생] &e어둠 속에서 비명소리와 함께 누군가 잔인하게 살해당했습니다! &4&l☠"
+        broadcast "      남은 생존자들은 서로를 더욱 의심하십시오. 범인은 이 안에 있습니다..."
+        broadcast ""
+        
+        loop all players:
+            send title "&c&l☠ 누군가 살해당했습니다! ☠" with subtitle "&7&o비명소리가 들린 곳은 어디일까요..." to loop-player for 3 seconds
+            play sound "entity.lightning_bolt.thunder" with volume 0.7 and pitch 0.8 to loop-player
+            play sound "entity.elder_guardian.curse" with volume 0.4 and pitch 0.5 to loop-player
+
+# --- [2] 쉬프트 유지형 은신 시스템 ---
+on toggle sneak:
+    if {game.active} is true:
+        if {murderer::%player%} is true:
+            wait 1 tick
+            if player is sneaking:
+                if name of player's tool contains "살인자의 검":
+                    if {stealth::%player%} is not set:
+                        set {stealth::%player%} to true
+                        hide player from all players
+                        apply invisibility to player for 999 days
+                        send "{@prefix} &8어둠 속으로 숨어듭니다..." to player
+                        play sound "entity.wither.ambient" with volume 0.5 and pitch 0.5 at player
+                        set {_p} to player's name
+                        loop 6 times:
+                            execute console command "execute at %{_p}% run particle minecraft:dust{color:[0.0,0.0,0.0],scale:1.5} ~ ~0.1 ~ 0.4 0.1 0.4 0 15 normal"
+                            execute console command "execute at %{_p}% run particle minecraft:dust{color:[1.0,0.0,0.0],scale:1.5} ~ ~0.1 ~ 0.4 0.1 0.4 0 15 normal"
+                            wait 5 ticks
+            else:
+                if {stealth::%player%} is true:
+                    wait 1 second
+                    if player is not sneaking:
+                        if {stealth::%player%} is true:
+                            delete {stealth::%player%}
+                            reveal player to all players
+                            remove invisibility from player
+                            send "{@prefix} &c모습을 드러냈습니다!" to player
+                            play sound "entity.phantom.extinguish" with volume 0.5 and pitch 1.5 at player
+                            set {_p} to player's name
+                            loop 6 times:
+                                execute console command "execute at %{_p}% run particle minecraft:dust{color:[0.0,0.0,0.0],scale:1.5} ~ ~0.1 ~ 0.4 0.1 0.4 0 15 normal"
+                                execute console command "execute at %{_p}% run particle minecraft:dust{color:[1.0,0.0,0.0],scale:1.5} ~ ~0.1 ~ 0.4 0.1 0.4 0 15 normal"
+                                wait 5 ticks
+
+on tool change:
+    if {murderer::%player%} is true:
+        if {stealth::%player%} is true:
+            delete {stealth::%player%}
+            reveal player to all players
+            remove invisibility from player
+            send "{@prefix} &c무기를 변경하여 은신이 해제되었습니다." to player
+            play sound "entity.phantom.extinguish" with volume 0.5 and pitch 1.5 at player
+            set {_p} to player's name
+            loop 6 times:
+                execute console command "execute at %{_p}% run particle minecraft:dust{color:[0.0,0.0,0.0],scale:1.5} ~ ~0.1 ~ 0.4 0.1 0.4 0 15 normal"
+                execute console command "execute at %{_p}% run particle minecraft:dust{color:[1.0,0.0,0.0],scale:1.5} ~ ~0.1 ~ 0.4 0.1 0.4 0 15 normal"
+                wait 5 ticks
+
+# --- [3] 데미지 조절 ---
+on damage:
+    if {game.active} is not true:
+        stop
+    if damage cause is fall:
+        if {dash.nofall::%victim%} is true:
+            cancel event
+            delete {dash.nofall::%victim%}
+            stop
+    if attacker is not a player:
+        stop
+    if {dmg.processing::%victim%} is true:
+        delete {dmg.processing::%victim%}
+        stop
+    if name of attacker's tool contains "시민의 검":
+        set {dmg.processing::%victim%} to true
+        cancel event
+        damage victim by 2
+        push victim away from attacker at speed 0.6
+        play sound "entity.player.attack.weak" with volume 1 and pitch 1 at victim
+        stop
+    if name of attacker's tool contains "살인자의 검":
+        set {dmg.processing::%victim%} to true
+        cancel event
+        damage victim by 7
+        push victim away from attacker at speed 0.6
+        play sound "entity.player.attack.strong" with volume 1 and pitch 1 at victim
+        stop
+# --- [4] 무기 스킬 시스템 ---
+on right click:
+    if {game.active} is not true:
+        stop
+    if name of player's tool does not contain "살인자의 검":
+        stop
+    set {_now} to unix timestamp of now
+    if player is sneaking:
+        if {teleport.cooldown::%player%} is set:
+            set {_elapsed} to {_now} - {teleport.cooldown::%player%}
+            if {_elapsed} is less than 32:
+                set {_remaining} to 32 - {_elapsed}
+                send "{@prefix} &c암습 준비 중... (남은 시간: %{_remaining}%초)" to player
+                stop
+        set {_target} to player's target player
+        if {_target} is not set:
+            send "{@prefix} &c정확히 시민을 조준하고 사용해 주세요." to player
+            stop
+        if distance between player and {_target} is greater than 32:
+            send "{@prefix} &c상대방이 너무 멀리 있습니다. (최대 32칸)" to player
+            stop
+        set {teleport.cooldown::%player%} to {_now}
+        set {_tName} to {_target}'s name
+        execute console command "execute at %{_tName}% run tp %player% ~ ~ ~ ~ ~"
+        execute console command "execute as %player% at %player% run tp %player% ^ ^ ^-1.2"
+        send "{@prefix} &c&l공포! &f살인마가 당신의 뒤로 이동했습니다!" to {_target}
+        send "{@prefix} &e&l암습 성공! &f목표의 뒤편으로 순간이동했습니다." to player
+        play sound "entity.enderman.teleport" with volume 1 and pitch 0.8 at player
+        stop
+    if {dash.cooldown::%player%} is set:
+        set {_elapsed} to {_now} - {dash.cooldown::%player%}
+        if {_elapsed} is less than 14:
+            set {_remaining} to 14 - {_elapsed}
+            send "{@prefix} &c돌진 준비 중... (남은 시간: %{_remaining}%초)" to player
+            stop
+    set {dash.cooldown::%player%} to {_now}
+    set {dash.nofall::%player%} to true
+    push player upwards at speed 0.3
+    push player forward at speed 1.5
+    play sound "entity.wither.shoot" with volume 0.8 and pitch 1.3 at player
+    wait 6 ticks
+    if block at player is not air:
+        teleport player to location 1 block above player
+        send "{@prefix} &e지형 끼임이 감지되어 위치가 안전하게 보정되었습니다." to player
+    wait 4 seconds
+    delete {dash.nofall::%player%}
+
+# --- [5] 관리자 전용 역할 설정 ---
+command /다음살인자 [<player>]:
+    permission: op
+    trigger:
+        if arg-1 is set:
+            set {next_murderer} to arg-1
+            send "{@prefix} &a다음 게임의 확정 살인마를 &c%arg-1% &a님으로 예약했습니다." to player
+        else:
+            delete {next_murderer}
+            send "{@prefix} &a다음 게임 살인마 예약을 취소했습니다. (다시 무작위 선출)" to player
+
+command /살인자설정 [<player>]:
+    permission: op
+    trigger:
+        if {game.active} is not true:
+            send "{@prefix} &c게임이 진행 중일 때만 사용할 수 있습니다." to player
+            stop
+        if arg-1 is not set:
+            send "{@prefix} &c플레이어 닉네임을 입력해주세요." to player
+            stop
+        set {murderer::%arg-1%} to true
+        clear arg-1's inventory
+        reveal arg-1 to all players
+        remove invisibility from arg-1
+        delete {stealth::%arg-1%}
+        set {_mud_sword} to iron sword named "&c살인자의 검"
+        set lore of {_mud_sword} to "&8▶ &c[패시브] &f웅크리기(Shift) 유지 시 투명화" and "&8▶ &c[우클릭] &f전방으로 빠르게 돌진 &7(쿨: 14초)" and "&8▶ &c[Shift+우클릭] &f14칸 내 대상의 등 뒤로 순간이동 &7(쿨: 14초)"
+        set {_civ_sword} to iron sword named "&a시민의 검"
+        set lore of {_civ_sword} to "&8▶ &7가장 기본적인 방어용 무기입니다." and "&8▶ &7공격력: 3 (하트 1.5칸)"
+        give {_mud_sword} to arg-1
+        give {_civ_sword} to arg-1
+        execute console command "team join murder_game %arg-1%"
+        send "&c[!] &c관리자의 권한으로 살인마로 지정되었습니다!" to arg-1
+
+command /시민설정 [<player>]:
+    permission: op
+    trigger:
+        if {game.active} is not true:
+            send "{@prefix} &c게임이 진행 중일 때만 사용할 수 있습니다." to player
+            stop
+        if arg-1 is not set:
+            send "{@prefix} &c플레이어 닉네임을 입력해주세요." to player
+            stop
+        delete {murderer::%arg-1%}
+        clear arg-1's inventory
+        reveal arg-1 to all players
+        remove invisibility from arg-1
+        delete {stealth::%arg-1%}
+        set {_civ_sword} to wooden sword named "&a시민의 검"
+        set lore of {_civ_sword} to "&8▶ &7가장 기본적인 방어용 무기입니다." and "&8▶ &7공격력: 3 (하트 1.5칸)"
+        give {_civ_sword} to arg-1
+        execute console command "team join murder_game %arg-1%"
+        send "&c[!] &a관리자의 권한으로 일반 시민으로 지정되었습니다." to arg-1
+
+on quit:
+    if {stealth::%player%} is true:
+        reveal player to all players
+        delete {stealth::%player%}
+
+# --- [6] 피 회복 제한 ---
+on heal:
+    if {game.active} is true:
+        if "%heal reason%" is not "magic" or "potion":
+            if chance of 80%:
+                cancel event
+
+# --- [7] 킬타임 확인 ---
+command /킬타임:
+    trigger:
+        if {game.active} is not true:
+            send "&c[시스템] &f현재 진행 중인 게임이 없습니다." to player
+            stop
+        if {killtime_seconds} is set:
+            set {_m} to floor({killtime_seconds} / 60)
+            set {_s} to {killtime_seconds} - ({_m} * 60)
+            send "{@prefix} &f다음 킬타임 알람까지 &e%{_m}%분 %{_s}%초 &f남았습니다." to player

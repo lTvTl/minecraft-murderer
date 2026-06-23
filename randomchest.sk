@@ -1,0 +1,93 @@
+# ==========================================================================
+# [파밍 시스템] 단일 파밍 상자 자동 생성 스크립트 (MC 1.21.1)
+# ==========================================================================
+
+command /상자생성 [<integer>] [<integer>]:
+    permission: op
+    permission message: &c[상자생성] 권한이 없습니다.
+    trigger:
+        set {_radius} to arg-1 if arg-1 is set else 50
+        set {_count} to arg-2 if arg-2 is set else 30
+        
+        send "&a[상자생성] &f반경 %{_radius}%칸 내에 단일 파밍 상자 %{_count}%개를 생성합니다..." to player
+        
+        loop {_count} times:
+            # [오류 해결] location() 함수를 버리고 가장 안전한 상대 좌표 추가 방식으로 무작위 위치 계산
+            set {_min} to 0 - {_radius}
+            set {_x} to random number between {_min} and {_radius}
+            set {_z} to random number between {_min} and {_radius}
+            
+            set {_loc} to location of player
+            add {_x} to x-coordinate of {_loc}
+            add {_z} to z-coordinate of {_loc}
+            
+            set {_ground} to highest block at {_loc}
+            set {_chestLoc} to location of block above {_ground}
+            
+            # 2. 80% 확률로 일반 상자, 20% 확률로 특수 상자 지정
+            set {_chance} to random integer between 1 and 100
+            
+            if {_chance} <= 80:
+                # -----------------------------------
+                # [일반 상자 세팅 - 80%]
+                # -----------------------------------
+                set block at {_chestLoc} to chest
+                clear inventory of block at {_chestLoc}
+                
+                set {_normalType} to random integer between 1 and 10
+                
+                # [오류 해결] 'inventory of' 구문을 제거하고 블록에 직접 slot을 대입하는 최적의 문법 적용
+                if {_normalType} is 1:
+                    set slot 13 of block at {_chestLoc} to 16 of dirt
+                else if {_normalType} is 2:
+                    set slot 13 of block at {_chestLoc} to 16 of cobblestone
+                else if {_normalType} is 3:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of stick
+                else if {_normalType} is 4:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of paper
+                else if {_normalType} is 5:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of string
+                else if {_normalType} is 6:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of leather
+                else if {_normalType} is 7:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of flint
+                else if {_normalType} is 8:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of bone
+                else if {_normalType} is 9:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of apple
+                else if {_normalType} is 10:
+                    set slot 13 of block at {_chestLoc} to (random integer between 2 and 5) of bowl
+                    
+            else:
+                # -----------------------------------
+                # [특수 상자 세팅 - 20%]
+                # -----------------------------------
+                set block at {_chestLoc} to chest
+                set block above {_chestLoc} to diamond block  # 상자 위에 다이아몬드 블록 배치
+                clear inventory of block at {_chestLoc}
+                
+                set {_specType} to random integer between 1 and 10
+                
+                # 특수 아이템들에 기능과 쿨타임을 설명하는 Lore 추가
+                if {_specType} is 1:
+                    set slot 13 of block at {_chestLoc} to 1 of feather named "&b[특수] &f바람의 부적" with lore "&7바라보는 방향으로 빠르게 돌진합니다." and "&a(사용 후 3초 내 착지 시 낙하 데미지 무시)" and "&8▶ 쿨타임: 30초"
+                else if {_specType} is 2:
+                    set slot 13 of block at {_chestLoc} to 1 of lantern named "&b[특수] &f눈부신 랜턴" with lore "&7반경 5칸 이내의 대상에게 3초간 실명을 부여합니다." and "&8▶ 쿨타임: 30초"
+                else if {_specType} is 3:
+                    set slot 13 of block at {_chestLoc} to 1 of stick named "&b[특수] &f서리 지팡이" with lore "&7적중 시 대상을 3초간 느려지게 만드는 눈덩이를 발사합니다." and "&8▶ 쿨타임: 10초"
+                else if {_specType} is 4:
+                    set slot 13 of block at {_chestLoc} to 1 of paper named "&b[특수] &f응급 처치 붕대" with lore "&75초 동안 자신의 체력을 서서히 회복(재생 2)합니다." and "&8▶ 쿨타임: 40초"
+                else if {_specType} is 5:
+                    set slot 13 of block at {_chestLoc} to 1 of spyglass named "&b[특수] &f진실의 망원경" with lore "&7반경 15칸 이내의 모든 플레이어를 4초간 발광시킵니다." and "&8▶ 쿨타임: 45초"
+                else if {_specType} is 6:
+                    set slot 13 of block at {_chestLoc} to 1 of coal named "&b[특수] &f그림자 조약돌" with lore "&73초간 완벽히 은신하지만, 8초간 구속(5)에 걸립니다." and "&8▶ 쿨타임: 45초"
+                else if {_specType} is 7:
+                    set slot 13 of block at {_chestLoc} to 1 of white banner named "&b[특수] &f밀쳐내기 깃발" with lore "&7반경 4칸 이내의 모든 생명체를 멀리 밀쳐냅니다." and "&8▶ 쿨타임: 20초"
+                else if {_specType} is 8:
+                    set slot 13 of block at {_chestLoc} to 1 of ghast tear named "&b[특수] &f수호의 눈물" with lore "&73초 동안 피해를 방어하는 보호막(흡수 3)을 생성합니다." and "&8▶ 쿨타임: 40초"
+                else if {_specType} is 9:
+                    set slot 13 of block at {_chestLoc} to 1 of gunpowder named "&b[특수] &f혼란의 가루" with lore "&7자신의 위치에 7초간 짙은 연막 파티클을 생성합니다." and "&8▶ 쿨타임: 20초"
+                else if {_specType} is 10:
+                    set slot 13 of block at {_chestLoc} to 1 of note block named "&b[특수] &f경고의 종" with lore "&7반경 30칸 이내에 큰 소리와 함께 경고 알림을 보냅니다." and "&8▶ 쿨타임: 20초"
+                    
+        send "&a[상자생성] &f총 %{_count}%개의 단일 파밍 상자가 성공적으로 배치되었습니다!" to player

@@ -1,0 +1,53 @@
+# ==========================================================================
+# [사망 시스템] 사망 시 고유 플레이어 무덤 상자 생성 (MC 1.21.1 최적화본)
+# ==========================================================================
+
+on death of player:
+    # 1. 사망 위치를 마인크래프트 명령어가 인식할 수 있게 정수(정확한 블록 좌표)로 변환
+    set {_loc} to location of victim
+    set {_x} to floor(x-coordinate of {_loc})
+    set {_y} to floor(y-coordinate of {_loc})
+    set {_z} to floor(z-coordinate of {_loc})
+    
+    # 정수 좌표 기반의 정확한 블록 위치 재지정
+    set {_chestLoc} to location at ({_x}, {_y}, {_z}) in victim's world
+    set {_headLoc} to location at ({_x}, ({_y} + 1), {_z}) in victim's world
+
+    # [충돌 방지 보안 구문] 
+    # 만약 murder.sk에서 아이템 드롭을 막았다면 플레이어 인벤토리에서 직접 유품을 복사해옵니다.
+    if drops is empty:
+        set {_drops::*} to all items in victim's inventory
+    else:
+        set {_drops::*} to drops
+    
+    # 2. 바닥에 아이템이 난잡하게 떨어지는 것을 방지
+    clear drops
+    
+    # [안전 장치] 공허(Void) 예외 처리
+    if {_y} is less than -64:
+        send "&c[시스템] &f공허에서 사망하여 상자를 생성할 수 없습니다. 아이템이 소멸되었습니다." to victim
+        stop
+        
+    # 3. 사망한 위치에 상자 생성 및 1.21+ 최신 엄격한 JSON 포맷으로 이름 설정
+    set block at {_chestLoc} to chest
+    execute console command "data merge block %{_x}% %{_y}% %{_z}% {CustomName:'{""text"":""%victim%"",""color"":""dark_red"",""bold"":true,""extra"":[{""text"":""의 유품 상자"" Rhine"",""color"":""dark_gray"",""bold"":false}]}'}'"
+    
+    # 4. [닉네임 스킨 반영] 상자 윗칸에 정확한 플레이어 머리(1.21+ 프로필 태그) 배치
+    set block at {_headLoc} to player head
+    execute console command "data merge block %{_x}% %( {_y} + 1 )% %{_z}% {profile:{name:""%victim%""}}"
+
+    # 5. 상자 인벤토리에 아이템 넣기 (inventory of 명시)
+    loop {_drops::*}:
+        if inventory of block at {_chestLoc} has space for loop-value:
+            add loop-value to inventory of block at {_chestLoc}
+        # 상자가 꽉 찼다면 나머지만 바닥에 드롭
+        else:
+            drop loop-value at {_chestLoc}
+            
+    # 6. 사망자에게 상자 생성 좌표 안내
+    send "&c&l[사망] &f사망하신 위치에 고유 유품 상자가 생성되었습니다!" to victim
+    send "&e▶ 좌표: X: %{_x}%, Y: %{_y}%, Z: %{_z}%" to victim
+    
+    # (선택 연출) 효과음 및 파티클
+    execute console command "execute positioned %{_x}% %{_y}% %{_z}% run particle minecraft:totem_of_undying ~ ~1 ~ 0.5 0.5 0.5 0.1 50 normal"
+    play sound "block.anvil.use" with volume 0.8 and pitch 1 to all players in radius 10 around {_chestLoc}

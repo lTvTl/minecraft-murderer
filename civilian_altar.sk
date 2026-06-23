@@ -1,0 +1,205 @@
+# ==========================================
+# [살인자를 찾아라] 성스러운 제단 및 무기 조합 시스템 (최종 완성본)
+# ==========================================
+
+options:
+    prefix: &a[수호의 제단]
+
+# --- [1] 제단 위치 설정 (OP 전용) ---
+command /제단설정:
+    permission: op
+    trigger:
+        set {altar.location} to player's location
+        set x-coordinate of {altar.location} to round(x-coordinate of {altar.location})
+        set y-coordinate of {altar.location} to round(y-coordinate of {altar.location})
+        set z-coordinate of {altar.location} to round(z-coordinate of {altar.location})
+        send "{@prefix} &f현재 서 있는 위치 정중앙을 무기 제작 제단으로 지정했습니다!" to player
+        send "{@prefix} &7(좌표: %{altar.location}%)" to player
+
+# --- 게임 시작 시 제단 초기화 ---
+on command:
+    if command is "살인자시작":
+        set {altar.iron} to false
+        set {altar.gold} to false
+        set {altar.diamond} to false
+        set {altar.star} to false
+        set {altar.count} to 0
+
+# --- [2] 테스트용 재료 지급 명령어 ---
+command /재료지급:
+    permission: op
+    trigger:
+        give 1 iron ingot named "&f[재료] 정제된 철 고리" to player
+        give 1 gold ingot named "&e[재료] 가공된 금 장식" to player
+        give 1 diamond named "&b[재료] 증폭의 보석" to player
+        give 1 nether star named "&d[재료] 수호의 핵" to player
+        send "{@prefix} &f테스트용 조합 재료 4종을 지급했습니다." to player
+
+# --- [3] 제단 우클릭 상호작용 ---
+on right click:
+    if {game.active} is true:
+        if {altar.location} is set:
+            if distance between event-location and {altar.location} is less than or equal to 1.5:
+                
+                # --- [A] 재료 공헌 ---
+                if player's tool is iron ingot named "&f[재료] 정제된 철 고리":
+                    cancel event
+                    if {altar.iron} is true:
+                        send "{@prefix} &c이미 철 고리는 제단에 바쳐져 있습니다." to player
+                        stop
+                    remove 1 iron ingot named "&f[재료] 정제된 철 고리" from player's inventory
+                    set {altar.iron} to true
+                    add 1 to {altar.count}
+                    broadcast "{@prefix} &f누군가가 &f[정제된 철 고리]&f를 제단에 바쳤습니다! &e(%{altar.count}%/4)"
+                    execute console command "execute at %event-location% run particle minecraft:composter ~ ~1 ~ 0.3 0.3 0.3 0.1 10"
+                    play sound "block.anvil.use" with volume 1 and pitch 1.2 to all players
+                    stop
+
+                if player's tool is gold ingot named "&e[재료] 가공된 금 장식":
+                    cancel event
+                    if {altar.gold} is true:
+                        send "{@prefix} &c이미 금 장식은 제단에 바쳐져 있습니다." to player
+                        stop
+                    remove 1 gold ingot named "&e[재료] 가공된 금 장식" from player's inventory
+                    set {altar.gold} to true
+                    add 1 to {altar.count}
+                    broadcast "{@prefix} &f누군가가 &e[가공된 금 장식]&f를 제단에 바쳤습니다! &e(%{altar.count}%/4)"
+                    execute console command "execute at %event-location% run particle minecraft:composter ~ ~1 ~ 0.3 0.3 0.3 0.1 10"
+                    play sound "block.anvil.use" with volume 1 and pitch 1.2 to all players
+                    stop
+
+                if player's tool is diamond named "&b[재료] 증폭의 보석":
+                    cancel event
+                    if {altar.diamond} is true:
+                        send "{@prefix} &c이미 증폭의 보석은 제단에 바쳐져 있습니다." to player
+                        stop
+                    remove 1 diamond named "&b[재료] 증폭의 보석" from player's inventory
+                    set {altar.diamond} to true
+                    add 1 to {altar.count}
+                    broadcast "{@prefix} &f누군가가 &b[증폭의 보석]&f를 제단에 바쳤습니다! &e(%{altar.count}%/4)"
+                    execute console command "execute at %event-location% run particle minecraft:composter ~ ~1 ~ 0.3 0.3 0.3 0.1 10"
+                    play sound "block.anvil.use" with volume 1 and pitch 1.2 to all players
+                    stop
+
+                if player's tool is nether star named "&d[재료] 수호의 핵":
+                    cancel event
+                    if {altar.star} is true:
+                        send "{@prefix} &c이미 수호의 핵은 제단에 바쳐져 있습니다." to player
+                        stop
+                    remove 1 nether star named "&d[재료] 수호의 핵" from player's inventory
+                    set {altar.star} to true
+                    add 1 to {altar.count}
+                    broadcast "{@prefix} &f누군가가 &d[수호의 핵]&f를 제단에 바쳤습니다! &e(%{altar.count}%/4)"
+                    execute console command "execute at %event-location% run particle minecraft:composter ~ ~1 ~ 0.3 0.3 0.3 0.1 10"
+                    play sound "block.anvil.use" with volume 1 and pitch 1.2 to all players
+                    stop
+
+                # --- [B] 맨손 우클릭 최종 조합 ---
+                if player's tool is air:
+                    if {altar.count} is less than 4:
+                        send "{@prefix} &c아직 모든 재료가 모이지 않았습니다. 현재 (%{altar.count}%/4)" to player
+                        stop
+                    
+                    if {altar.count} is 4:
+                        if {murderer::%player%} is true:
+                            send "{@prefix} &c당신은 이 제단의 무기를 수확할 권한이 없습니다." to player
+                            play sound "block.chest.locked" with volume 1 and pitch 0.8 to player
+                            stop
+                        
+                        else:
+                            set {altar.iron} to false
+                            set {altar.gold} to false
+                            set {altar.diamond} to false
+                            set {altar.star} to false
+                            set {altar.count} to 0
+                            
+                            give 1 iron axe named "&a시민의 수호 도끼" with lore "||&f우클릭 시 주변 살인마의||&e은신을 해제&f하고 &c실명&f을 부여합니다.||&7(쿨타임: 20초)" to player
+                            
+                            broadcast "{@prefix} &a&l제단이 빛나며 %player%님에게 &a&l[시민의 수호 도끼]&a&l가 주어졌습니다!"
+                            execute console command "execute at %event-location% run particle minecraft:totem_of_undying ~ ~1 ~ 1 1 1 0.1 100"
+                            play sound "ui.toast.challenge_complete" with volume 1 and pitch 1 to all players
+
+# ==========================================
+# --- [4] 시민 무기 기술 ---
+# ==========================================
+on right click:
+    if {game.active} is true:
+        if name of player's tool contains "시민의 수호 도끼":
+            
+            # ------------------------------------------
+            # [A] Shift + 우클릭: 섬광 방패 전개 (반경 6칸)
+            # ------------------------------------------
+            if player is sneaking:
+                if {shield.cooldown::%player%} is set:
+                    set {_waited} to difference between {shield.cooldown::%player%} and now
+                    if {_waited} is less than 20 seconds:
+                        set {_remaining} to 20 seconds
+                        remove {_waited} from {_remaining}
+                        send "&a[수호의 도끼] &c결계 재사용 대기 중... (남은 시간: %{_remaining}%)" to player
+                        stop
+                
+                set {shield.cooldown::%player%} to now
+                
+                play sound "entity.shield.block" with volume 1 and pitch 0.5 to player
+                play sound "entity.wither.spawn" with volume 0.3 and pitch 1.5 to all players
+                
+                execute console command "execute at %player% run particle minecraft:flash ~ ~1 ~ 4 1 4 0 15"
+                execute console command "execute at %player% run particle minecraft:end_rod ~ ~1 ~ 4 0.5 4 0.1 150"
+                execute console command "execute at %player% run particle minecraft:dust{color:[1.0,0.8,0.2],scale:2.0} ~ ~0.2 ~ 4 0.1 4 0 250"
+                
+                send "&a[수호의 도끼] &e&l섬광 방패 전개! &f(반경 6칸)" to player
+                
+                loop all players:
+                    if {murderer::%loop-value%} is true:
+                        if loop-value is not player:
+                            if distance between player and loop-value is less than or equal to 6:
+                                if loop-value has invisibility:
+                                    execute console command "effect clear %loop-value% minecraft:invisibility"
+                                    send "&a[수호의 도끼] &c&l시민의 섬광에 의해 은신이 강제로 탄로났습니다!" to loop-value
+                                    send "&a[수호의 도끼] &e&l팅! &f살인마의 은신을 깨뜨렸습니다!" to player
+                                
+                                execute console command "effect give %loop-value% minecraft:blindness 3 0 true"
+                                execute console command "effect give %loop-value% minecraft:slowness 3 2 true"
+                                execute console command "execute at %loop-value% run particle minecraft:damage_indicator ~ ~1 ~ 0.5 0.5 0.5 0.1 15"
+                                play sound "entity.elder_guardian.curse" with volume 0.5 and pitch 1.5 to loop-value
+                                
+                                damage loop-value by 5
+                                push loop-value away from player at speed 1.2
+                                push loop-value upwards at speed 0.3
+                                
+                                send "&a[수호의 도끼] &c섬광의 빛이 살인마에게 타격을 입혔습니다!" to player
+
+            # ------------------------------------------
+            # [B] 일반 우클릭: 수호의 파동 (반경 7칸)
+            # ------------------------------------------
+            else:
+                if {wave.cooldown::%player%} is set:
+                    set {_waited} to difference between {wave.cooldown::%player%} and now
+                    if {_waited} is less than 5 seconds:
+                        set {_remaining} to 5 seconds
+                        remove {_waited} from {_remaining}
+                        send "&a[수호의 도끼] &c파동 재사용 대기 중... (남은 시간: %{_remaining}%)" to player
+                        stop
+                
+                set {wave.cooldown::%player%} to now
+                
+                play sound "entity.player.attack.sweep" with volume 1 and pitch 0.8 to all players
+                play sound "item.mace.smash_ground" with volume 0.8 and pitch 1.5 to all players
+                
+                execute console command "execute at %player% run particle minecraft:gust ~ ~1 ~ 5 0.5 5 0 60"
+                execute console command "execute at %player% run particle minecraft:sweep_attack ~ ~1 ~ 5 0.5 5 0 20"
+                execute console command "execute at %player% run particle minecraft:dust{color:[0.0,0.8,1.0],scale:2.5} ~ ~0.2 ~ 5 0.1 5 0 200"
+                
+                send "&a[수호의 도끼] &b&l수호의 파동! &f(반경 7칸)" to player
+                
+                loop all players:
+                    if loop-value is not player:
+                        if {murderer::%loop-value%} is true:
+                            if distance between player and loop-value is less than or equal to 7:
+                                damage loop-value by 3
+                                push loop-value away from player at speed 0.8
+                                push loop-value upwards at speed 0.2
+                                
+                                execute console command "execute at %loop-value% run particle minecraft:crit ~ ~1 ~ 0.5 0.5 0.5 0.1 30"
+                                play sound "entity.player.attack.crit" with volume 1 and pitch 1 to loop-value
+                                send "&c[!] &b시민의 수호 파동에 휩쓸려 피해를 입었습니다!" to loop-value

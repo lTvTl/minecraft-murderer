@@ -1,0 +1,244 @@
+# ==========================================================================
+# [시민 특수 아이템] 유지형 10종 고유 기능 스크립트 (MC 1.21.1)
+# ==========================================================================
+
+# 7초 연막을 안전하게 실행하기 위한 전용 함수
+function spawnSmokeScreen(loc: location):
+    loop 7 times:
+        execute console command "execute positioned %x-coord of {_loc}% %y-coord of {_loc}% %z-coord of {_loc}% run particle minecraft:campfire_cosy_smoke ~ ~1 ~ 1.5 1.5 1.5 0.02 1500 normal"
+        wait 0.5 seconds
+
+# --- [아이템 지급 명령어 (상세 설명 Lore 포함)] ---
+command /특수아이템:
+    permission: op
+    trigger:
+        give paper named "&b[특수] &f바람의 부적" with lore "&7바라보는 방향으로 빠르게 돌진합니다." and "&a(사용 후 3초 내 착지 시 낙하 데미지 무시)" and "&8▶ 쿨타임: 30초" to player
+        give lantern named "&b[특수] &f눈부신 랜턴" with lore "&7반경 5칸 이내의 대상에게 3초간 실명을 부여합니다." and "&8▶ 쿨타임: 30초" to player
+        give stick named "&b[특수] &f서리 지팡이" with lore "&7적중 시 대상을 3초간 느려지게 만드는 눈덩이를 발사합니다." and "&8▶ 쿨타임: 10초" to player
+        give paper named "&b[특수] &f응급 처치 붕대" with lore "&75초 동안 자신의 체력을 서서히 회복(재생 2)합니다." and "&8▶ 쿨타임: 40초" to player
+        give spyglass named "&b[특수] &f진실의 망원경" with lore "&7반경 15칸 이내의 모든 플레이어를 4초간 발광시킵니다." and "&8▶ 쿨타임: 45초" to player
+        give flint named "&b[특수] &f그림자 조약돌" with lore "&73초간 완벽히 은신하지만, 8초간 구속(5)에 걸립니다." and "&8▶ 쿨타임: 45초" to player
+        give white banner named "&b[특수] &f밀쳐내기 깃발" with lore "&7반경 4칸 이내의 모든 생명체를 멀리 밀쳐냅니다." and "&8▶ 쿨타임: 20초" to player
+        give ghast tear named "&b[특수] &f수호의 눈물" with lore "&73초 동안 피해를 방어하는 보호막(흡수 3)을 생성합니다." and "&8▶ 쿨타임: 40초" to player
+        give gunpowder named "&b[특수] &f혼란의 가루" with lore "&7자신의 위치에 7초간 짙은 연막 파티클을 생성합니다." and "&8▶ 쿨타임: 20초" to player
+        give bell named "&b[특수] &f경고의 종" with lore "&7반경 30칸 이내에 큰 소리와 함께 경고 알림을 보냅니다." and "&8▶ 쿨타임: 20초" to player
+        send "&a[시스템] &f설명이 포함된 10종의 특수 아이템이 지급되었습니다." to player
+
+on right click:
+    # 1.21.1 버전 완벽 호환을 위해 텍스트 변환 후 contains 검사
+    set {_tool} to "%name of player's tool%"
+    
+    # -----------------------------------
+    # 1. 바람의 부적 (돌진 + 낙뎀 방지)
+    # -----------------------------------
+    if {_tool} contains "바람의 부적":
+        cancel event
+        if {cooldown.wind::%player%} is set:
+            set {_waited} to difference between {cooldown.wind::%player%} and now
+            if {_waited} is less than 30 seconds:
+                set {_remains} to 30 seconds
+                subtract {_waited} from {_remains}
+                send "&c[바람의 부적] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.wind::%player%} to now
+        
+        # [추가됨] 낙하 데미지 방지 활성화
+        set {nofall.wind::%player%} to true
+        
+        push player in direction of player at speed 1.2
+        push player upwards at speed 0.2
+        play sound "entity.bat.takeoff" with volume 1 and pitch 1.2 to player
+        send "&a[바람] &f전방으로 빠르게 돌진합니다!" to player
+        
+        # 3초 뒤에 낙뎀 방지 삭제 (그 전에 착지해야 함)
+        wait 3 seconds
+        delete {nofall.wind::%player%}
+        
+    # -----------------------------------
+    # 2. 눈부신 랜턴 (광역 실명)
+    # -----------------------------------
+    else if {_tool} contains "눈부신 랜턴":
+        cancel event
+        if {cooldown.lantern::%player%} is set:
+            set {_waited} to difference between {cooldown.lantern::%player%} and now
+            if {_waited} is less than 30 seconds:
+                set {_remains} to 30 seconds
+                subtract {_waited} from {_remains}
+                send "&c[눈부신 랜턴] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.lantern::%player%} to now
+        
+        play sound "block.glass.break" with volume 1 and pitch 2 to all players at player
+        loop players in radius 5 around player:
+            if loop-player is not player:
+                apply blindness 1 to loop-player for 3 seconds
+                send "&e[랜턴] &f강한 빛에 노출되어 시야가 차단되었습니다!" to loop-player
+                
+    # -----------------------------------
+    # 3. 서리 지팡이 (눈덩이 발사)
+    # -----------------------------------
+    else if {_tool} contains "서리 지팡이":
+        cancel event
+        if {cooldown.ice::%player%} is set:
+            set {_waited} to difference between {cooldown.ice::%player%} and now
+            if {_waited} is less than 10 seconds:
+                set {_remains} to 10 seconds
+                subtract {_waited} from {_remains}
+                send "&c[서리 지팡이] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.ice::%player%} to now
+        
+        shoot a snowball from player at speed 2
+        set metadata value "icebolt" of last shot projectile to true
+        play sound "entity.snow_golem.shoot" with volume 1 and pitch 1 to player
+                
+    # -----------------------------------
+    # 4. 응급 처치 붕대 (재생)
+    # -----------------------------------
+    else if {_tool} contains "응급 처치 붕대":
+        cancel event
+        if {cooldown.bandage::%player%} is set:
+            set {_waited} to difference between {cooldown.bandage::%player%} and now
+            if {_waited} is less than 40 seconds:
+                set {_remains} to 40 seconds
+                subtract {_waited} from {_remains}
+                send "&c[응급 처치 붕대] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.bandage::%player%} to now
+        
+        apply regeneration 2 to player for 5 seconds
+        play sound "item.armor.equip_leather" with volume 1 and pitch 1 to player
+        send "&a[붕대] &f체력을 서서히 회복합니다." to player
+
+    # -----------------------------------
+    # 5. 진실의 망원경 (발광 부여)
+    # -----------------------------------
+    else if {_tool} contains "진실의 망원경":
+        cancel event
+        if {cooldown.spyglass::%player%} is set:
+            set {_waited} to difference between {cooldown.spyglass::%player%} and now
+            if {_waited} is less than 45 seconds:
+                set {_remains} to 45 seconds
+                subtract {_waited} from {_remains}
+                send "&c[진실의 망원경] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.spyglass::%player%} to now
+        
+        play sound "item.spyglass.use" with volume 1 and pitch 1 to all players at player
+        loop players in radius 15 around player:
+            if loop-player is not player:
+                apply glowing 1 to loop-player for 4 seconds
+                
+    # -----------------------------------
+    # 6. 그림자 조약돌 (은신 + 구속)
+    # -----------------------------------
+    else if {_tool} contains "그림자 조약돌":
+        cancel event
+        if {cooldown.shadow::%player%} is set:
+            set {_waited} to difference between {cooldown.shadow::%player%} and now
+            if {_waited} is less than 45 seconds:
+                set {_remains} to 45 seconds
+                subtract {_waited} from {_remains}
+                send "&c[그림자 조약돌] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.shadow::%player%} to now
+        
+        apply invisibility 1 to player for 3 seconds
+        apply slowness 5 to player for 8 seconds
+        play sound "block.soul_sand.place" with volume 1 and pitch 0.5 to player
+        send "&8[그림자] &f모습을 숨겼지만, 발걸음이 무거워집니다." to player
+
+    # -----------------------------------
+    # 7. 밀쳐내기 깃발 (모든 엔티티 넉백 스킬로 상향)
+    # -----------------------------------
+    else if {_tool} contains "밀쳐내기 깃발":
+        cancel event
+        if {cooldown.banner::%player%} is set:
+            set {_waited} to difference between {cooldown.banner::%player%} and now
+            if {_waited} is less than 20 seconds:
+                set {_remains} to 20 seconds
+                subtract {_waited} from {_remains}
+                send "&c[밀쳐내기 깃발] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.banner::%player%} to now
+        
+        play sound "entity.ender_dragon.flap" with volume 1 and pitch 0.5 to all players at player
+        
+        loop entities in radius 4 around player:
+            if loop-entity is not player:
+                if loop-entity is a living entity:
+                    push loop-entity away from player at speed 1.5
+                    push loop-entity upwards at speed 0.3
+
+    # -----------------------------------
+    # 8. 수호의 눈물 (보호막)
+    # -----------------------------------
+    else if {_tool} contains "수호의 눈물":
+        cancel event
+        if {cooldown.tear::%player%} is set:
+            set {_waited} to difference between {cooldown.tear::%player%} and now
+            if {_waited} is less than 40 seconds:
+                set {_remains} to 40 seconds
+                subtract {_waited} from {_remains}
+                send "&c[수호의 눈물] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.tear::%player%} to now
+        
+        apply absorption 3 to player for 3 seconds
+        play sound "entity.illusioner.cast_spell" with volume 1 and pitch 1 to player
+        send "&e[수호] &f피해를 흡수하는 보호막이 생성되었습니다." to player
+
+    # -----------------------------------
+    # 9. 혼란의 가루 (연막 파티클)
+    # -----------------------------------
+    else if {_tool} contains "혼란의 가루":
+        cancel event
+        if {cooldown.powder::%player%} is set:
+            set {_waited} to difference between {cooldown.powder::%player%} and now
+            if {_waited} is less than 20 seconds:
+                set {_remains} to 20 seconds
+                subtract {_waited} from {_remains}
+                send "&c[혼란의 가루] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.powder::%player%} to now
+        
+        play sound "block.fire.extinguish" with volume 1 and pitch 0.5 to all players at player
+        spawnSmokeScreen(location of player)
+        
+    # -----------------------------------
+    # 10. 경고의 종 (어그로/위험 알림)
+    # -----------------------------------
+    else if {_tool} contains "경고의 종":
+        cancel event
+        if {cooldown.bell::%player%} is set:
+            set {_waited} to difference between {cooldown.bell::%player%} and now
+            if {_waited} is less than 20 seconds:
+                set {_remains} to 20 seconds
+                subtract {_waited} from {_remains}
+                send "&c[경고의 종] &f재사용 대기 중입니다. &7(%{_remains}% 남음)" to player
+                stop
+        set {cooldown.bell::%player%} to now
+        
+        play sound "block.bell.use" with volume 2 and pitch 1 to all players in radius 30 around player
+        send "&c[경고] &f근처에서 누군가 경고의 종을 울렸습니다!" to all players in radius 30 around player
+
+# -----------------------------------
+# 특수 시스템 판정 (낙하 데미지 방지 / 서리 지팡이 적중)
+# -----------------------------------
+on damage:
+    # 1. 바람의 부적 사용 시 낙하 데미지 무시
+    if damage cause is fall:
+        if {nofall.wind::%victim%} is true:
+            cancel event
+            delete {nofall.wind::%victim%}
+            stop
+            
+    # 2. 서리 지팡이 눈덩이 피격 시 구속 효과 부여
+    if damage cause is projectile:
+        if projectile is a snowball:
+            if metadata value "icebolt" of projectile is true:
+                if victim is a living entity:
+                    if victim is not attacker:
+                        apply slowness 2 to victim for 3 seconds
+                        if victim is a player:
+                            send "&b[서리] &f몸이 얼어붙어 느려집니다!" to victim
