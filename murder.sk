@@ -30,7 +30,7 @@ command /살인자시작 [<integer>]:
         set lore of {_civ_sword} to "&8▶ &7가장 기본적인 방어용 무기입니다." and "&8▶ &7공격력: 3 (하트 1.5칸)"
         
         set {_mud_sword} to iron sword named "&c살인자의 검"
-        set lore of {_mud_sword} to "&8▶ &c[패시브] &f웅크리기(Shift) 유지 시 투명화" and "&8▶ &c[우클릭] &f전방으로 빠르게 돌진 &7(쿨: 14초)" and "&8▶ &c[Shift+우클릭] &f14칸 내 대상의 등 뒤로 순간이동 &7(쿨: 14초)"
+        set lore of {_mud_sword} to "&8▶ &c[패시브] &f웅크리기(Shift) 유지 시 투명화" and "&8▶ &c[우클릭] &f전방으로 빠르게 돌진 &7(쿨: 7초)" and "&8▶ &c[Shift+우클릭] &f32칸 내 대상의 등 뒤로 순간이동 &7(쿨: 14초)"
         
         loop all players:
             clear loop-player's inventory
@@ -225,8 +225,8 @@ on right click:
     if player is sneaking:
         if {teleport.cooldown::%player%} is set:
             set {_elapsed} to {_now} - {teleport.cooldown::%player%}
-            if {_elapsed} is less than 32:
-                set {_remaining} to 32 - {_elapsed}
+            if {_elapsed} is less than 14:
+                set {_remaining} to 14 - {_elapsed}
                 send "{@prefix} &c암습 준비 중... (남은 시간: %{_remaining}%초)" to player
                 stop
         set {_target} to player's target player
@@ -246,8 +246,8 @@ on right click:
         stop
     if {dash.cooldown::%player%} is set:
         set {_elapsed} to {_now} - {dash.cooldown::%player%}
-        if {_elapsed} is less than 14:
-            set {_remaining} to 14 - {_elapsed}
+        if {_elapsed} is less than 7:
+            set {_remaining} to 7 - {_elapsed}
             send "{@prefix} &c돌진 준비 중... (남은 시간: %{_remaining}%초)" to player
             stop
     set {dash.cooldown::%player%} to {_now}
@@ -288,7 +288,7 @@ command /살인자설정 [<player>]:
         remove invisibility from arg-1
         delete {stealth::%arg-1%}
         set {_mud_sword} to iron sword named "&c살인자의 검"
-        set lore of {_mud_sword} to "&8▶ &c[패시브] &f웅크리기(Shift) 유지 시 투명화" and "&8▶ &c[우클릭] &f전방으로 빠르게 돌진 &7(쿨: 14초)" and "&8▶ &c[Shift+우클릭] &f14칸 내 대상의 등 뒤로 순간이동 &7(쿨: 14초)"
+        set lore of {_mud_sword} to "&8▶ &c[패시브] &f웅크리기(Shift) 유지 시 투명화" and "&8▶ &c[우클릭] &f전방으로 빠르게 돌진 &7(쿨: 7초)" and "&8▶ &c[Shift+우클릭] &f32칸 내 대상의 등 뒤로 순간이동 &7(쿨:14초)"
         set {_civ_sword} to iron sword named "&a시민의 검"
         set lore of {_civ_sword} to "&8▶ &7가장 기본적인 방어용 무기입니다." and "&8▶ &7공격력: 3 (하트 1.5칸)"
         give {_mud_sword} to arg-1
